@@ -1,6 +1,6 @@
 beautifulsoup4==4.13.4
 joblib==1.5.1
-
+fpdf==1.7.2
 lightgbm==4.6.0
 matplotlib==3.10.3
 numpy==1.26.4
