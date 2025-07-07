@@ -23,7 +23,6 @@ st.markdown("""
     <style>
     body {
         background: linear-gradient(to bottom right, #fff5f5, #ffe0e0);
-;
     }
     .big-font {
         font-size: 22px !important;
@@ -50,7 +49,7 @@ st.title("🔐 Phishing URL Detector with SHAP Explainability")
 st.sidebar.title("🗒️ How to Use")
 st.sidebar.markdown("""
 1. Enter a URL below  
-2. Click **Analyze**  
+2. Click **Analyze** or press **Enter**  
 3. Check the result & explanation  
 4. Download your PDF report  
 
@@ -61,11 +60,13 @@ st.sidebar.markdown("""
 Built by *Mrinal Basak Shuvo & team*
 """)
 
-# URL input
-url = st.text_input("🔗 Enter a URL:")
+# ======== FORM for URL input + Analyze ========
+with st.form("url_form"):
+    url = st.text_input("🔗 Enter a URL:")
+    submitted = st.form_submit_button("Analyze")
 
-# Perform analysis
-if st.button("Analyze") and url:
+# Perform analysis if submitted
+if submitted and url:
     start_time = time.time()
     with st.spinner("Analyzing... Please wait"):
         pred, score, features = predict_url(url, return_features=True)
@@ -229,10 +230,8 @@ if st.session_state.get("analysis_done"):
 
             pdf.set_font("Arial", 'I', 10)
             pdf.cell(200, 10, txt="Built by Mrinal Basak Shuvo", ln=True, align="C")
-            
-            # Add GitHub project link
             pdf.set_font("Arial", 'I', 10)
-            pdf.set_text_color(0, 0, 255)  # Blue for link look
+            pdf.set_text_color(0, 0, 255)
             pdf.cell(200, 10, txt="View the full project on GitHub", ln=True, align="C", link="https://github.com/mbs57/Phishing")
 
             with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmp_pdf:
@@ -249,11 +248,13 @@ if st.session_state.get("analysis_done"):
                 mime="application/pdf"
             )
 
+# Home button
+if st.button("🏠 Back to Home"):
+    st.session_state.clear()
+    st.rerun()
+
 # Footer
 st.markdown("""
 ---
 <center> <sub>Model: Ensemble (RFC, XGBC, LGBM)<br> Built by Mrinal Basak Shuvo</sub> </center>
 """, unsafe_allow_html=True)
-
-
-
