@@ -249,9 +249,11 @@ if st.session_state.get("analysis_done"):
                 mime="application/pdf"
             )
 
-
-
-
+# Footer
+st.markdown("""
+---
+<center> <sub>Model: Ensemble (RFC, XGBC, LGBM)<br> Built by Mrinal Basak Shuvo</sub> </center>
+""", unsafe_allow_html=True)
 
 
 
