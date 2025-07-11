@@ -216,7 +216,7 @@ def extract_features(url):
         issuer_valid = any(t in issuer_str for t in trusted_issuers)
     except:
         issuer_valid = False
-    result = 1 if ssl_flag and issuer_valid and cert_duration >= 730 else -1
+    result = -1 if ssl_flag and issuer_valid and cert_duration >= 730 else 1
     features.append(result)
     logging.debug(f"Feature 8 (HTTPS): {result}")
 
