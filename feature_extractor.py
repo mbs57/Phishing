@@ -30,7 +30,7 @@ FEATURE_NAMES = [
     "HTTPS",
     "Domain Registration Length",
     "Favicon",
-    "Non-Standard Port",
+    #"Non-Standard Port",
     "HTTPS Token in Domain",
     "Request URL",
     "URL of Anchor",
@@ -40,9 +40,9 @@ FEATURE_NAMES = [
     "Abnormal URL",
     "Website Forwarding",
     "Status Bar Customization",
-    "Disabling Right Click",
+    #"Disabling Right Click",
     "Using Pop-up Window",
-    "IFrame Redirection",
+    #"IFrame Redirection",
     "Age of Domain",
     "DNS Record",
     "Website Traffic",
@@ -169,14 +169,15 @@ def extract_features(url):
     logging.debug(f"Feature 4 (@ Symbol): {result}")
 
     # 5. Redirecting using “//”
-    if protocol == "http" and url.find("//", 7) != -1:
-        result = 1
-    elif protocol == "https" and url.find("//", 8) != -1:
-        result = 1
-    else:
-        result = -1
-    features.append(result)
-    logging.debug(f"Feature 5 (// Redirect): {result}")
+    try:
+        double_slash_in_path = '//' in parsed.path
+        result = 1 if double_slash_in_path else -1
+        features.append(result)
+        logging.debug(f"Feature 5 (// Redirect): {result}")
+    except:
+        features.append(0)  # Neutral fallback
+        logging.debug(f"Feature 5 (// Redirect): 0")
+
 
     # 6. Adding Prefix or Suffix Separated by (-)
     result = 1 if '-' in ext.domain else -1
@@ -191,34 +192,45 @@ def extract_features(url):
     features.append(result)
     logging.debug(f"Feature 7 (Subdomains): {result}")
 
-    # SSL and WHOIS data
-    try:
-        context = ssl.create_default_context()
-        with socket.create_connection((hostname, 443), timeout=5) as sock:
-            with context.wrap_socket(sock, server_hostname=hostname) as ssock:
-                cert = ssock.getpeercert()
-                ssl_flag = 1
-                valid_to = datetime.strptime(cert['notAfter'], "%b %d %H:%M:%S %Y %Z")
-                valid_from = datetime.strptime(cert['notBefore'], "%b %d %H:%M:%S %Y %Z")
-                ssl_age = (valid_to - datetime.utcnow()).days
-                cert_duration = (valid_to - valid_from).days
-    except Exception as e:
-        logging.error(f"SSL check error: {e}")
-        ssl_flag = 0
-        cert_duration = 0
+    # 8. SSLfinal_State (HTTPS check)
+    result = 1  # default: phishing (bad)
 
-    # 8. HTTPS (with issuer and cert age ≥ 2 years)
-    trusted_issuers = ['geotrust', 'godaddy', 'network solutions', 'thawte', 'comodo', 'doster', 'verisign', "let's encrypt", 'digicert', 'globalsign', 'sectigo']
-    issuer_valid = False
-    try:
-        issuer = cert.get('issuer', '')
-        issuer_str = str(issuer).lower()
-        issuer_valid = any(t in issuer_str for t in trusted_issuers)
-    except:
-        issuer_valid = False
-    result = 1 if ssl_flag and issuer_valid and cert_duration >= 730 else -1
+    if parsed.scheme == 'https':
+        try:
+            context = ssl.create_default_context()
+            with socket.create_connection((hostname, 443), timeout=5) as sock:
+                with context.wrap_socket(sock, server_hostname=hostname) as ssock:
+                    cert = ssock.getpeercert()
+                    issuer = cert.get('issuer', '')
+
+                    # Flatten issuer to string
+                    if isinstance(issuer, tuple) or isinstance(issuer, list):
+                        issuer_str = ' '.join(str(x) for x in issuer).lower()
+                    else:
+                        issuer_str = str(issuer).lower()
+
+                    trusted_issuers = [
+                    'geotrust', 'godaddy', 'network solutions', 'thawte',
+                    'comodo', 'comodoca', 'starfield', 'doster', 'verisign',
+                    "let's encrypt", 'letsencrypt', 'digicert', 'globalsign',
+                    'sectigo', 'symantec', 'entrust', 'cfca', 'rapidssl',
+                    'google', 'amazon', 'cloudflare'
+]
+
+                    if any(t in issuer_str for t in trusted_issuers):
+                        result = -1  # good SSL → legit
+
+        except Exception as e:
+            logging.error(f"SSL check error: {e}")
+            # result stays 1 (phishing)
+
+    else:
+        result = 1  # HTTP → phishing for SSL feature
+
     features.append(result)
-    logging.debug(f"Feature 8 (HTTPS): {result}")
+    logging.debug(f"Feature 8 (SSLfinal_State): {result}")
+
+
 
     # 9. Domain Registration Length
     try:
@@ -228,7 +240,7 @@ def extract_features(url):
             creation_date = creation_date[0]
         reg_length = (datetime.now() - creation_date).days
         age_days = reg_length
-        result = 1 if reg_length >= 365 else -1
+        result = -1 if reg_length >= 365 else 1
         features.append(result)
         logging.debug(f"Feature 9 (Domain Registration): {result}")
     except Exception as e:
@@ -248,18 +260,12 @@ def extract_features(url):
             icon_domain = tldextract.extract(icon_url).registered_domain
             result = 1 if icon_domain and icon_domain != ext.registered_domain else -1
         else:
-            result = 1  # No favicon is suspicious
+            result = 0  # Neutral if no favicon found
         features.append(result)
         logging.debug(f"Feature 10 (Favicon): {result}")
     except Exception as e:
-        features.append(1)
+        features.append(0)
         logging.error(f"Favicon error: {e}")
-
-    # 11. Non-Standard Port
-    port = parsed.port
-    result = 1 if port and port not in [80, 443] else -1
-    features.append(result)
-    logging.debug(f"Feature 11 (Non-Standard Port): {result}")
 
     # 12. HTTPS Token in Domain
     result = 1 if 'https' in ext.domain.lower() else -1
@@ -267,6 +273,7 @@ def extract_features(url):
     logging.debug(f"Feature 12 (HTTPS in Domain): {result}")
 
     # 13. Request URL
+    TRUSTED_DOMAINS = ["google.com", "amazon.com", "microsoft.com", "facebook.com"]
     try:
         external = 0
         total = 0
@@ -278,12 +285,20 @@ def extract_features(url):
                 src_domain = tldextract.extract(src_url).registered_domain
                 if src_domain and src_domain != ext.registered_domain:
                     external += 1
-        result = 1 if total and external / total > 0.5 else -1
+        if total == 0:
+            result = 0  # Neutral if no media
+        else:
+            if ext.registered_domain in TRUSTED_DOMAINS:
+                result = -1  # Force legitimate for trusted brands
+            else:
+                result = 1 if external / total > 0.5 else -1
         features.append(result)
         logging.debug(f"Feature 13 (Request URL): {result}")
     except:
-        features.append(1)
-        logging.debug(f"Feature 13 (Request URL): 1")
+        features.append(0)
+        logging.debug(f"Feature 13 (Request URL): 0")
+
+
 
     # 14. URL of Anchor
     try:
@@ -292,14 +307,19 @@ def extract_features(url):
         total = len(anchors)
         for a in anchors:
             href = a.get('href', '')
-            if href and ('#' in href or 'javascript' in href.lower() or (href.startswith('http') and tldextract.extract(href).registered_domain != ext.registered_domain)):
+            if href and ('#' in href or 'javascript' in href.lower() or
+                        (href.startswith('http') and tldextract.extract(href).registered_domain != ext.registered_domain)):
                 bad_links += 1
-        result = 1 if total and bad_links / total > 0.5 else -1
+        if total == 0:
+            result = 1  # Neutral if no anchors
+        else:
+            result = 1 if bad_links / total > 0.5 else -1
         features.append(result)
         logging.debug(f"Feature 14 (Anchor URL): {result}")
     except:
         features.append(1)
-        logging.debug(f"Feature 14 (Anchor URL): 1")
+        logging.debug(f"Feature 14 (Anchor URL): 0")
+
 
     # 15. Links in <Meta>, <Script>, <Link> Tags
     try:
@@ -349,12 +369,21 @@ def extract_features(url):
         whois_domain = whois_data.domain_name
         if isinstance(whois_domain, list):
             whois_domain = whois_domain[0]
-        result = -1 if whois_domain and whois_domain.lower() == domain.lower() else 1
+
+        if whois_domain:
+            whois_domain = whois_domain.replace("www.", "").strip().lower()
+            domain_clean = domain.replace("www.", "").strip().lower()
+            result = -1 if whois_domain == domain_clean else 1
+        else:
+            result = 0  # WHOIS missing → neutral
+
         features.append(result)
         logging.debug(f"Feature 18 (Abnormal URL): {result}")
     except:
-        features.append(1)
-        logging.debug(f"Feature 18 (Abnormal URL): 1")
+        features.append(0)
+        logging.debug(f"Feature 18 (Abnormal URL): 0")
+
+
 
     # 19. Website Forwarding
     try:
@@ -377,15 +406,6 @@ def extract_features(url):
         features.append(1)
         logging.debug(f"Feature 20 (Status Bar): 1")
 
-    # 21. Disabling Right Click
-    try:
-        result = 1 if 'event.button==2' in html.lower() or 'contextmenu' in html.lower() else -1
-        features.append(result)
-        logging.debug(f"Feature 21 (Right Click Disable): {result}")
-    except:
-        features.append(1)
-        logging.debug(f"Feature 21 (Right Click Disable): 1")
-
     # 22. Using Pop-up Window
     try:
         scripts = soup.find_all('script')
@@ -399,19 +419,8 @@ def extract_features(url):
         features.append(1)
         logging.debug(f"Feature 22 (Pop-up): 1")
 
-    # 23. IFrame Redirection
-    try:
-        iframes = soup.find_all('iframe')
-        iframe_border = any(iframe.get('frameBorder', '0') == '0' for iframe in iframes)
-        result = 1 if iframe_border else -1
-        features.append(result)
-        logging.debug(f"Feature 23 (Iframe): {result}")
-    except:
-        features.append(1)
-        logging.debug(f"Feature 23 (Iframe): 1")
-
     # 24. Age of Domain
-    result = 1 if age_days >= 180 else -1
+    result = -1 if age_days >= 180 else 1
     features.append(result)
     logging.debug(f"Feature 24 (Domain Age): {result}")
 
@@ -437,7 +446,6 @@ def extract_features(url):
     logging.debug(f"Feature 27 (PageRank): {result}")
 
     # 28. Google Index
-    # Note: Consider using Google Custom Search API for production to avoid scraping issues
     try:
         google = f"https://www.google.com/search?q=site:{domain}"
         headers = {'User-Agent': 'Mozilla/5.0'}
@@ -446,8 +454,9 @@ def extract_features(url):
         features.append(result)
         logging.debug(f"Feature 28 (Google Index): {result}")
     except:
-        features.append(1)
-        logging.debug(f"Feature 28 (Google Index): 1")
+        features.append(0)
+        logging.debug(f"Feature 28 (Google Index): 0")
+
 
     # 29. Number of Links Pointing to Page
     result = get_backlinks(domain)
@@ -459,10 +468,10 @@ def extract_features(url):
     features.append(result)
     logging.debug(f"Feature 30 (Statistical Reports): {result}")
 
-    assert len(features) == 30, f"Expected 30 features, got {len(features)}"
+    assert len(features) == 27, f"Expected 30 features, got {len(features)}"
     return np.array(features)
 
-'''def extract_and_label_features(url):
+def extract_and_label_features(url):
     """Extract and label all 30 phishing features for a given URL."""
     try:
         features = extract_features(url)
@@ -478,11 +487,12 @@ def extract_features(url):
         return features
     except Exception as e:
         logging.error(f"Error extracting features for {url}: {e}")
-        return None'''
+        return None
 
-'''def main():
+def main():
     """Test feature extraction with sample URLs."""
     test_urls = [
+        "https://www.facebook.com",  # Legitimate
         "https://www.google.com",  # Legitimate
         "http://125.98.3.123/fake.html",  # Phishing (IP address)
         "http://bit.ly/19DXSk4",  # Phishing (short URL)
@@ -495,4 +505,4 @@ def extract_features(url):
             logging.info(f"Feature vector: {features.tolist()}")
 
 if __name__ == "__main__":
-    main()'''
+    main()
