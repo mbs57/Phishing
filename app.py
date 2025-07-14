@@ -66,7 +66,7 @@ st.sidebar.markdown("""
 
 **Tip:** Include `http://` or `https://` for best accuracy.
 
-Built by *Mrinal Basak Shuvo & team*
+Built by *Mrinal Basak Shuvo & Team*
 """)
 
 # ======== FORM for URL input + Analyze ========
@@ -265,5 +265,5 @@ if st.button("🏠 Back to Home"):
 # Footer
 st.markdown("""
 ---
-<center> <sub>Model: Ensemble (RF, XGBC, LGBM)<br> Built by Mrinal Basak Shuvo</sub> </center>
+<center> <sub>Model: Ensemble - DWGF (Dynamic Weighted Gradient Fusion) Created with (RFC, XGBC, LGBM)<br> Built by Mrinal Basak Shuvo & Team</sub> </center>
 """, unsafe_allow_html=True)
