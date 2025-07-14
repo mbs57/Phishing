@@ -2,7 +2,29 @@
 
 Created By Mrinal Basak Shuvo
 
+---
+
+## Overview
+
+This is a machine learning-powered Streamlit app to detect phishing URLs.  
+It leverages feature extraction techniques and explains predictions using SHAP (SHapley Additive exPlanations).
+
+---
+
+## Features
+
+- Detects phishing URLs with high accuracy  
+- Interactive web interface built with Streamlit  
+- Model explanation and interpretability with SHAP visualizations  
+- Easy to run locally or use the hosted app online
+
+---
+
 ## 🚀 How to Run
+
+Clone the repo and install dependencies using one of the following methods:
+
+### Using Conda environment
 
 ```console
 $ git clone https://github.com/mbs57/Phishing.git
