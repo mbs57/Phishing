@@ -1,6 +1,8 @@
 # 🔐 Phishing URL Detector
 
 Created By Mrinal Basak Shuvo
+**Try the live app here:**  
+[https://phishing-app.streamlit.app/](https://phishing-app.streamlit.app/)
 
 ---
 
