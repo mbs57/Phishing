@@ -14,8 +14,8 @@ import numpy as np
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # API keys (replace with valid keys)
-GOOGLE_API_KEY = "AIzaSyBdbKjpNBvY4DsvAEMNTuco1OtiqyeGhEY"  # Get from https://console.developers.google.com/
-OPENPAGERANK_API_KEY = "c84gg084ko80gko0sg4w0sowsskwk8go8s04wc8c"
+GOOGLE_API_KEY = "Paste Your Own"  # Get from https://console.developers.google.com/
+OPENPAGERANK_API_KEY = "cPaste Your Own"
 
 
 # Feature names as per UCI dataset
